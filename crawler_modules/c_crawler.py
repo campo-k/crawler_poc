@@ -28,7 +28,10 @@ class Crawler(Commons):
         self.is_error = False
         self.url = _envs[type]["url"]
         self.params = _envs[type]["params"]
-        self.parser = eval(_envs[type]["parser"])
+        self.parser = getattr(Crawler, _envs[type]["parser"])
+
+    def parser_dummy(self):
+        print("parser_dummy invoked")
 
     def execute(self):
         '''
