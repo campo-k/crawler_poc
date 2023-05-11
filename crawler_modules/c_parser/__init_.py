@@ -1,0 +1,1 @@
+from crawler_modules.c_parser import parser_dummy_site
