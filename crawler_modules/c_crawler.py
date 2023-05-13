@@ -3,7 +3,7 @@ import requests
 from time import sleep
 from random import randint
 from crawler_modules.c_modules import Commons, get_envs
-from crawler_modules.c_parser import parser_dummy_site
+from crawler_modules.c_parser import parser_dummy_site, parser_naver_store
 
 
 class Crawler(Commons):
@@ -28,17 +28,21 @@ class Crawler(Commons):
         self.is_error = False
         self.url = _envs[type]["url"]
         self.params = _envs[type]["params"]
-        self.parser = getattr(parser_dummy_site, _envs[type]["parser"])
+        self.parser = getattr(parser_naver_store, _envs[type]["parser"])
 
-    def execute(self):
+    def execute(self, keyword="keyword"):
         '''
         개별 parser에서 데이터 처리
         execute는 1 request로 한정 (다만 마우스 스크롤, next page가 있는 경우에는 별도 조치 필요)
         여러 개의 키워드 쿼리가 있는 경우 main.py에서 iterate 수행 
         '''
-        resp = self.request_html()
-        data = self.parser(resp.text)
-        pass
+        # resp = self.request_html()
+        # data = self.parser(resp.text)
+        parser = self.parser()
+        keyword_info = parser.get_keyword_info(keyword)
+        product_list = parser.get_product_list(keyword)
+        print(keyword_info)
+        print(product_list)
     
     def set_params(self):
         '''
