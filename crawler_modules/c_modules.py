@@ -9,6 +9,11 @@ crawler_variables = {
         "params": [],
         "parser": "parser_dummy"
     },
+    "naver_store":{
+        "url": "",
+        "params": [],
+        "parser": "NaverShoppingCrawler"
+    }
 }
 
 def get_envs():
