@@ -36,14 +36,15 @@ class Crawler(Commons):
         execute는 1 request로 한정 (다만 마우스 스크롤, next page가 있는 경우에는 별도 조치 필요)
         여러 개의 키워드 쿼리가 있는 경우 main.py에서 iterate 수행 
         '''
-        # resp = self.request_html()
-        # data = self.parser(resp.text)
         parser = self.parser()
         keyword_info = parser.get_keyword_info(keyword)
         product_list = parser.get_product_list(keyword)
-        print(keyword_info)
-        print(product_list)
-    
+        store_reviews = parser.get_store_review(keyword)
+        # print(keyword_info)
+        # print(product_list)
+        # print(store_reviews)
+        pass
+
     def set_params(self):
         '''
         데이터 소스에서 필요한 parameter 정리

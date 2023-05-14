@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import json
 
 class NaverShoppingCrawler:
     def __init__(self):
@@ -30,7 +31,7 @@ class NaverShoppingCrawler:
 
     def get_product_list(self, keyword, n=50):
         # url = "/api/search/all?eq=&iq=&pagingIndex=1&pagingSize=40&productSet=total&query=%EB%82%A8%EC%84%B1%20%EC%8A%A4%EB%8B%88%EC%BB%A4%EC%A6%88&sort=price_asc&viewType=list&xq="
-        
+
         url = f'https://search.shopping.naver.com/search/all?query={keyword}'
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
@@ -60,6 +61,41 @@ class NaverShoppingCrawler:
 
         return data_list
 
+    def get_store_review(self, request_ids):
+        '''
+        TODO:
+            merchant_id, product_id 가져오기 (product_list_by_request)
+            review 개수가 많은 상품
+        '''
+        url = 'https://m.shopping.naver.com/v1/reviews/paged-reviews'
+        headers = {
+            "accept": 'application/json, text/plain, */*',
+            "accept-encoding": 'gzip, deflate, br',
+            "accept-language": 'ko-KR,ko;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.6,en;q=0.5',
+            "content-type": 'application/json;charset=UTF-8',
+            "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+        }
+        data_list = []
+        for merchant_id,product_id in request_ids:
+            request_data = {
+                "page": 1,
+                "pageSize": 20,
+                # "merchantNo": "500154868",
+                "merchantNo": merchant_id,
+                # "originProductNo": "4451093970",
+                "originProductNo": product_id,
+                "sortType": "REVIEW_RANKING"
+            }
+            response = requests.post(url, headers=headers, data=json.dumps(request_data))
+            response = response.json()
+            product_review = self.extract_store_review_data(self, response)
+            data_list.append(product_review)
+            
+        return 
+
+    def get_integrated_review():
+        pass
+
     def extract_keyword_data(self, soup, name):
         data_list = []
         selector_dict = {
@@ -79,7 +115,8 @@ class NaverShoppingCrawler:
     def extract_product_data(self, soup, i, name):
         '''
         html 태그에서 가져오는 방식으로는 상위 5개밖에 가져오지 못함
-        TODO: modify to get top n results
+        TODO: 
+            try request api to get all results
         '''
         selector_dict = {
             "name": f"#content > div.style_content__xWg5l > div.basicList_list_basis__uNBZx > div > div:nth-child({i}) > div > div > div.basicList_info_area__TWvzp > div.basicList_title__VfX3c > a",
@@ -118,3 +155,31 @@ class NaverShoppingCrawler:
         else:
             return result[0].text
 
+    def extract_store_review_data(self, response):
+        
+        review_list = []
+        totalElements = response["totalElements"]
+        
+        response_reviews = response["contents"]
+        for review in response_reviews:
+            '''
+            날짜 (yyyy-mm-dd 포맷으로 통일)
+            아이디(혹시 마킹된 것 아이디 알아낼 수 있는 방법이 있는지 한 번 봐주시면 땡큐 배리 감사!)
+            후기 TEXT만 (신발이 디자인이~~ 리네요~)
+            별점 점수
+            '''
+            r = {
+                "id": review.get("id"),
+                "createDate": review.get("createDate").split("T")[0],
+                "writerMemberId": review.get("writerMemberId"),
+                "reviewContent": review.get("reviewContent"),
+                "reviewScore": review.get("reviewScore"),
+            }
+            review_list.append(r)
+        return {
+            "totalElements": totalElements,
+            "reviews": review_list
+        }
+
+    def extract_integrated_review_data():
+        pass
