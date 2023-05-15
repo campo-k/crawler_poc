@@ -39,10 +39,12 @@ class Crawler(Commons):
         parser = self.parser()
         keyword_info = parser.get_keyword_info(keyword)
         product_list = parser.get_product_list(keyword)
-        store_reviews = parser.get_store_review(keyword)
-        # print(keyword_info)
-        # print(product_list)
-        # print(store_reviews)
+        store_reviews = parser.get_store_review()
+
+        product_ids = [p["productId"] for p in product_list if p.get("lowMallList")]
+        integrated_products = parser.get_integrated_product(product_ids[0])
+        # integrated_reviews = parser.get_integrated_review(product_ids[0])
+        
         pass
 
     def set_params(self):
