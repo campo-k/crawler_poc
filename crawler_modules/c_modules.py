@@ -1,7 +1,7 @@
 import json
 from urllib import parse
 from datetime import datetime
-
+import os
 
 crawler_variables = {
     "dummy_site": {
@@ -35,5 +35,5 @@ class Commons:
         return json.load(file)
 
     def json_save(self, file_path: str, datas: object):
-        file = open(file_path, "w")
-        return json.dump(datas, file)
+        file = open(file_path, "w", encoding='utf-8')
+        return json.dump(datas, file, ensure_ascii=False)

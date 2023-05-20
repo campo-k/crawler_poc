@@ -1,4 +1,5 @@
 import math
+import os
 import requests
 from time import sleep
 from random import randint
@@ -36,15 +37,38 @@ class Crawler(Commons):
         execute는 1 request로 한정 (다만 마우스 스크롤, next page가 있는 경우에는 별도 조치 필요)
         여러 개의 키워드 쿼리가 있는 경우 main.py에서 iterate 수행 
         '''
+        DATA_PATH = os.path.dirname(os.path.realpath(__file__)) + "/data"
         parser = self.parser()
-        keyword_info = parser.get_keyword_info(keyword)
-        product_list = parser.get_product_list(keyword)
-        store_reviews = parser.get_store_review()
 
-        product_ids = [p["productId"] for p in product_list if p.get("lowMallList")]
-        integrated_products = parser.get_integrated_product(product_ids[0])
-        # integrated_reviews = parser.get_integrated_review(product_ids[0])
+        # KEYWORD_INFO
+        keyword_info_parsed = parser.get_keyword_info(keyword)
+        self.json_save(f"{DATA_PATH}/keyword_info_parsed.json", keyword_info_parsed)
+
+        # PRODUCTS
+        products_raw = parser.get_products(keyword)
+        self.json_save(f"{DATA_PATH}/products_raw.json", products_raw)
+        products_parsed = parser.parse_products_raw(products_raw)
+        self.json_save(f"{DATA_PATH}/products_parsed.json", products_parsed)
+
+        # STORE_PRODUCT_REVIEWS
+        total_store_reviews, store_product_reviews_raw = parser.get_store_product_reviews()
+        self.json_save(f"{DATA_PATH}/store_product_reviews_raw.json", store_product_reviews_raw)
+        store_reviews_parsed = parser.parse_store_product_reviews_raw(store_product_reviews_raw)
+        self.json_save(f"{DATA_PATH}/parse_store_product_reviews_raw.json", store_reviews_parsed)
+
+        # INTEGRATED_PRODUCTS
+        product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
+        integrated_products_raw = parser.get_integrated_products(product_ids[0])
+        self.json_save(f"{DATA_PATH}/integrated_products_raw.json", integrated_products_raw)
+        integrated_products_parsed = parser.parse_integrated_products_raw(integrated_products_raw)
+        self.json_save(f"{DATA_PATH}/integrated_products_parsed.json", integrated_products_parsed)
         
+        # INTEGRATED_REVIEWS
+        product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
+        integrated_reviews_raw = parser.get_integrated_reviews(product_ids[0])
+        self.json_save(f"{DATA_PATH}/integrated_reviews_raw.json", integrated_reviews_raw)
+        integrated_reviews_parsed = parser.parse_integrated_reviews_raw(integrated_reviews_raw)
+        self.json_save(f"{DATA_PATH}/integrated_reviews_parsed.json", integrated_reviews_parsed)
         pass
 
     def set_params(self):

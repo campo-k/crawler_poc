@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import json, math
-
+from crawler_modules.c_modules import Commons, get_envs
 
 class NaverShoppingCrawler:
     def __init__(self):
@@ -14,11 +14,11 @@ class NaverShoppingCrawler:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
         response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.content, 'html.parser')
-        relation_tags = self.extract_keyword_data(soup, "relation_tag")
-        categories = self.extract_keyword_data(soup, "category")
-        brands = self.extract_keyword_data(soup, "brand")
-        prices = self.extract_keyword_data(soup, "price")
-        subfilter_nums = self.extract_keyword_data(soup, "subfilter_num")
+        relation_tags = self.extract_keyword_info_raw(soup, "relation_tag")
+        categories = self.extract_keyword_info_raw(soup, "category")
+        brands = self.extract_keyword_info_raw(soup, "brand")
+        prices = self.extract_keyword_info_raw(soup, "price")
+        subfilter_nums = self.extract_keyword_info_raw(soup, "subfilter_num")
         data = {
             'relation_tags': relation_tags,
             'category': categories,
@@ -28,7 +28,7 @@ class NaverShoppingCrawler:
         }
         return data
 
-    def get_product_list(self, keyword, n=50):
+    def get_products(self, keyword, n=50):
         '''
         TODO:
             api로 고쳐서 호출하기 (page 개수에 맞춰서)
@@ -48,10 +48,10 @@ class NaverShoppingCrawler:
         soup = BeautifulSoup(response.content, 'html.parser')
         scripts = soup.find("script", {"id": "__NEXT_DATA__"})
         scripts_data = json.loads(scripts.text.replace(';','').strip())
-        products = self.extract_product_data(scripts_data)
+        products = self.extract_products(scripts_data)
         return products
 
-    def get_store_review(self, merchantNo="500245685", originProductNo=4662556695):
+    def get_store_product_reviews(self, merchantNo="500245685", originProductNo=4662556695):
         '''
         TODO:
             merchantNo, originProductNo 가져오기 (product_list_by_request)
@@ -66,7 +66,7 @@ class NaverShoppingCrawler:
             "content-type": 'application/json;charset=UTF-8',
             "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
         }
-        store_reviews = []
+        store_product_reviews_raw = []
         page_count = 1
         while True:
             request_data = {
@@ -79,19 +79,15 @@ class NaverShoppingCrawler:
             response = requests.post(url, headers=headers, data=json.dumps(request_data))
             
             response = response.json()
-            total_elements, total_pages, product_review = self.extract_store_review_data(response)
-            store_reviews.extend(product_review)
+            total_elements, total_pages, product_review_raw = self.extract_store_product_reviews(response)
+            store_product_reviews_raw.extend(product_review_raw)
             page_count += 1
             if page_count > total_pages:
                 break
             
-        return {
-            "total_elements": total_elements,
-            "store_reviews": store_reviews
-        }
+        return total_elements, store_product_reviews_raw
 
-
-    def get_integrated_product(self, product_id):
+    def get_integrated_products(self, product_id):
         url = f'https://search.shopping.naver.com/catalog/{product_id}'
         headers = {
             "accept": 'application/json, text/plain, */*',
@@ -105,18 +101,11 @@ class NaverShoppingCrawler:
         scripts = soup.find("script", {"id": "__NEXT_DATA__"})
         scripts_data = json.loads(scripts.text.replace(';','').strip())
 
-        lowestPrice, productCount, reviewCount, reviewScore, starScores = self.extract_integrated_product_data(scripts_data)
+        integrated_products_raw = self.extract_integrated_products(scripts_data)
 
-        return {
-            "product_id": product_id,
-            "lowestPrice": lowestPrice, 
-            "productCount": productCount, 
-            "reviewCount": reviewCount, 
-            "reviewScore": reviewScore, 
-            "starScores": starScores
-        }
+        return integrated_products_raw
 
-    def get_integrated_review(self, product_id, page_size=20):
+    def get_integrated_reviews(self, product_id, page_size=20):
         headers = {
             "accept": 'application/json, text/plain, */*',
             "accept-encoding": 'gzip, deflate, br',
@@ -130,7 +119,7 @@ class NaverShoppingCrawler:
         while True:
             url = f"https://search.shopping.naver.com/api/review?isNeedAggregation=N&nvMid={product_id}&page={page_count}&pageSize={page_size}&sortType=QUALITY"
             response = requests.get(url, headers=headers)
-            total_elements, integrated_review = self.extract_integrated_review_data(response)
+            total_elements, integrated_review = self.extract_integrated_reviews(response)
             total_pages = math.trunc(total_elements / page_size)
             integrated_reviews.extend(integrated_review)
             page_count += 1
@@ -142,7 +131,7 @@ class NaverShoppingCrawler:
             "integrated_review": integrated_review
         }
 
-    def extract_keyword_data(self, soup, name):
+    def extract_keyword_info_raw(self, soup, name):
         data_list = []
         selector_dict = {
             "relation_tag": "#container > div.relatedTags_relation_tag__Ct0q2 > div.relatedTags_relation_srh__YG9s7 > ul > li",
@@ -158,10 +147,29 @@ class NaverShoppingCrawler:
             data_list.append(data)
         return data_list
 
-    def extract_product_data(self, response):
-        product_list = []
+    def extract_products(self, response):
         products = response["props"]["pageProps"]["initialState"]["products"]["list"]
-        for p in products:
+        return products
+    
+    def extract_store_product_reviews(self, response):
+        totalElements = response["totalElements"]
+        totalPages = response["totalPages"]
+        
+        response_reviews = response["contents"]
+        return totalElements, totalPages, response_reviews
+
+    def extract_integrated_reviews(self, response):
+        totalCount = response["totalCount"]
+        reviews = response["reviews"]
+        return totalCount, reviews
+
+    def extract_integrated_products(self, response):
+        review_response = response["props"]["pageProps"]["initialState"]["catalog"]
+        return review_response
+    
+    def parse_products_raw(self, raw):
+        product_list = []
+        for p in raw:
             p = p["item"]
             product_info = {
                 "productId": p.get("id"),
@@ -190,20 +198,9 @@ class NaverShoppingCrawler:
             product_list.append(product_info)
         return product_list
 
-    def extract_store_review_data(self, response):
-        
+    def parse_store_product_reviews_raw(self, raw):
         review_list = []
-        totalElements = response["totalElements"]
-        totalPages = response["totalPages"]
-        
-        response_reviews = response["contents"]
-        for review in response_reviews:
-            '''
-            날짜 (yyyy-mm-dd 포맷으로 통일)
-            아이디(혹시 마킹된 것 아이디 알아낼 수 있는 방법이 있는지 한 번 봐주시면 땡큐 배리 감사!)
-            후기 TEXT만 (신발이 디자인이~~ 리네요~)
-            별점 점수
-            '''
+        for review in raw:
             r = {
                 "id": review.get("id"),
                 "createDate": review.get("createDate").split("T")[0],
@@ -212,14 +209,11 @@ class NaverShoppingCrawler:
                 "reviewScore": review.get("reviewScore"),
             }
             review_list.append(r)
-        return totalElements, totalPages, review_list
+        return review_list
 
-    def extract_integrated_review_data(self, response):
+    def parse_integrated_reviews_raw(self, raw):
         review_list = []
-        totalCount = response["totalCount"]
-        reviews = response["reviews"]
-        
-        for r in reviews:
+        for r in raw:
             r = {
                 "id": r.get("id"),
                 "content": r.get("content"),
@@ -231,21 +225,22 @@ class NaverShoppingCrawler:
                 "userId": r.get("userId"),
             }
             review_list.append(r)
-        return totalCount, reviews
+        return review_list
 
-
-
-
-    def extract_integrated_product_data(self, response):
-        review_response = response["props"]["pageProps"]["initialState"]["catalog"]
-        integrated_response = review_response["info"]
+    def parse_integrated_products_raw(self, raw):
+        integrated_response = raw["info"]
         lowestPrice = integrated_response["lowestPrice"]
         productCount = integrated_response["productCount"]
         reviewCount = integrated_response["reviewCount"]
         reviewScore = integrated_response["reviewScore"]
 
-        review_info = review_response["review"]["summary"]
+        review_info = raw["review"]["summary"]
         # averageStarScore = review_info["averageStarScore"]
         starScores = review_info["starScores"]
-        
-        return lowestPrice, productCount, reviewCount, reviewScore, starScores
+        return {
+            "lowestPrice": lowestPrice, 
+            "productCount": productCount, 
+            "reviewCount": reviewCount, 
+            "reviewScore": reviewScore, 
+            "starScores": starScores
+        }
