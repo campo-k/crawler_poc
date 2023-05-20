@@ -1,9 +1,12 @@
+import sys
 import math
 import requests
 from time import sleep
 from random import randint
 from crawler_modules.c_modules import Commons, get_envs
 from crawler_modules.c_parser import parser_dummy_site
+
+from instagrapi import Client
 
 
 class Crawler(Commons):
@@ -14,7 +17,7 @@ class Crawler(Commons):
         "accept-encoding": "gzip, deflate, br",
     }
 
-    def __init__(self, type: str, query=None, items=None) -> None:
+    def __init__(self, type: str, query=None, items=None, **kwargs) -> None:
         '''
         query 및 items의 경우 특정 키워드 검색 등을 위해 일단 구성
         차후 개발 명세에 따로 수정 가능
@@ -28,17 +31,46 @@ class Crawler(Commons):
         self.is_error = False
         self.url = _envs[type]["url"]
         self.params = _envs[type]["params"]
-        self.parser = getattr(parser_dummy_site, _envs[type]["parser"])
+        # To-jungsub 
+        # - 아래 부분은 parser를 하나밖에 쓸수 없는 구조입니다.
+        # - get_envs()통해 반환되는 parser string을 활용하기 위해서는 다른 방법이 필요합니다.
+        # self.parser = getattr(parser_dummy_site, _envs[type]["parser"])
+        
+        # For instagram, open source 사용 (https://github.com/adw0rd/instagrapi)
+        self.insta_cl = None 
+        if type == 'instagram':
+            self.insta_cl = Client()
+            self.insta_cl.login(kwargs['insta_id'], kwargs['insta_pw'])
 
-    def execute(self):
+    def execute(self, **kwargs):
         '''
         개별 parser에서 데이터 처리
         execute는 1 request로 한정 (다만 마우스 스크롤, next page가 있는 경우에는 별도 조치 필요)
         여러 개의 키워드 쿼리가 있는 경우 main.py에서 iterate 수행 
         '''
-        resp = self.request_html()
-        data = self.parser(resp.text)
-        pass
+        data = None
+
+        # For instagram, open source 사용 (https://github.com/adw0rd/instagrapi)
+        # - 요구 데이터 추가 시 관련 메서드 찾아서 추가 필요
+        # - 현재 구현되어 있는 메서드 4종
+        # - 1. 해시태그 인포 >> 해시태그 팔로워 수등
+        # - 2. 해시태그 인기 게시물 >> 해시태그 인기 게시물 리스트
+        # - 3. 해시태그 관련 게시물 >> 해시태그 관련 게시물 리스트
+        # - 4. 유저 게시물 >> 유저의 게시물 리스트
+        if self.type == 'instagram':
+            if   "hashtag_info" in kwargs:
+                data = self.insta_cl.hashtag_info(kwargs["hashtag_info"])
+            elif "hashtag_media_top" in kwargs:
+                data = self.insta_cl.hashtag_medias_top(kwargs["hashtag_media_top"])
+            elif "hashtag_media_rct" in kwargs:
+                data = self.insta_cl.hashtag_medias_recent(kwargs["hashtag_media_rct"])
+            elif "user_media" in kwargs:
+                user = self.insta_cl.user_id_from_username(kwargs["user_media"])
+                data = self.insta_cl.user_medias(user, 20)
+        else:
+            resp = self.request_html()
+            data = self.parser(resp.text)
+        return data        
     
     def set_params(self):
         '''

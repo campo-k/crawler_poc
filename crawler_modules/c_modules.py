@@ -9,6 +9,11 @@ crawler_variables = {
         "params": [],
         "parser": "parser_dummy"
     },
+    "instagram": {
+        "url": "",
+        "params": [],
+        "parser": "parser_instagram"
+    },
 }
 
 def get_envs():
