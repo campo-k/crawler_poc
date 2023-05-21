@@ -1,19 +1,25 @@
 import requests
-from bs4 import BeautifulSoup
-import pandas as pd
 import json, math
-from crawler_modules.c_modules import Commons, get_envs
 
 class NaverShoppingCrawler:
     def __init__(self):
         pass
 
-    def get_keyword_info(self, keyword):
-        url = f'https://search.shopping.naver.com/search/all?query={keyword}'
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
+    def get_keyword_info(self, soup):
+        """
+        Extracts keyword information from the provided soup object.
+
+        Args:
+            soup: BeautifulSoup object representing the HTML page.
+
+        Returns:
+            A dictionary containing the extracted keyword information:
+                - relation_tags: List of related tags.
+                - category: List of categories.
+                - brand: List of brands.
+                - price: List of prices.
+                - subfilter_nums: List of subfilter numbers.
+        """
         relation_tags = self.extract_keyword_info_raw(soup, "relation_tag")
         categories = self.extract_keyword_info_raw(soup, "category")
         brands = self.extract_keyword_info_raw(soup, "brand")
@@ -28,108 +34,68 @@ class NaverShoppingCrawler:
         }
         return data
 
-    def get_products(self, keyword, n=50):
-        '''
-        TODO:
-            api로 고쳐서 호출하기 (page 개수에 맞춰서)
-            https://search.shopping.naver.com/api/search/all?eq=&iq=&origQuery=%EB%82%A8%EC%84%B1%20%EC%8A%A4%EB%8B%88%EC%BB%A4%EC%A6%88&pagingIndex=2&pagingSize=40&productSet=total&query=%EB%82%A8%EC%84%B1%20%EC%8A%A4%EB%8B%88%EC%BB%A4%EC%A6%88&sort=rel&viewType=list&xq=
-        '''
-        cat_id = ""
-        frm = "" # "NVSHATC"
-        url = f'https://search.shopping.naver.com/search/all?query={keyword}&cat_id={cat_id}&frm={frm}'
-        headers = {
-            "accept": 'application/json, text/plain, */*',
-            "accept-encoding": 'gzip, deflate, br',
-            "accept-language": 'ko-KR,ko;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.6,en;q=0.5',
-            "content-type": 'application/json;charset=UTF-8',
-            "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-        }
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
+    def get_products(self, soup):
+        """
+        Extracts product information from the provided soup object.
+
+        Args:
+            soup: BeautifulSoup object representing the HTML page.
+
+        Returns:
+            A list of products extracted from the soup object.
+        """
         scripts = soup.find("script", {"id": "__NEXT_DATA__"})
         scripts_data = json.loads(scripts.text.replace(';','').strip())
         products = self.extract_products(scripts_data)
         return products
 
-    def get_store_product_reviews(self, merchantNo="500245685", originProductNo=4662556695):
-        '''
-        TODO:
-            merchantNo, originProductNo 가져오기 (product_list_by_request)
-                merchantNo: from product_list
-                originProductNo: 상품 리스트에서 찾을 수 없음
-        '''
-        url = 'https://m.shopping.naver.com/v1/reviews/paged-reviews'
-        headers = {
-            "accept": 'application/json, text/plain, */*',
-            "accept-encoding": 'gzip, deflate, br',
-            "accept-language": 'ko-KR,ko;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.6,en;q=0.5',
-            "content-type": 'application/json;charset=UTF-8',
-            "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-        }
-        store_product_reviews_raw = []
-        page_count = 1
-        while True:
-            request_data = {
-                "page": page_count,
-                "pageSize": 20,
-                "merchantNo": merchantNo,
-                "originProductNo": originProductNo,
-                "sortType": "REVIEW_RANKING"
-            }
-            response = requests.post(url, headers=headers, data=json.dumps(request_data))
-            
-            response = response.json()
-            total_elements, total_pages, product_review_raw = self.extract_store_product_reviews(response)
-            store_product_reviews_raw.extend(product_review_raw)
-            page_count += 1
-            if page_count > total_pages:
-                break
-            
-        return total_elements, store_product_reviews_raw
+    def get_store_product_reviews(self, resp):
+        """
+        Extracts store product reviews from the provided response.
 
-    def get_integrated_products(self, product_id):
-        url = f'https://search.shopping.naver.com/catalog/{product_id}'
-        headers = {
-            "accept": 'application/json, text/plain, */*',
-            "accept-encoding": 'gzip, deflate, br',
-            "accept-language": 'ko-KR,ko;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.6,en;q=0.5',
-            "content-type": 'application/json;charset=UTF-8',
-            "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-        }
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
+        Args:
+            resp: Response object containing the store product reviews.
+
+        Returns:
+            The raw data of store product reviews.
+        """
+        '''
+            merchantNo: from product_list
+            originProductNo: 상품 리스트에서 찾을 수 없음
+        '''
+        product_review_raw = self.extract_store_product_reviews(resp)
+            
+        return product_review_raw
+
+    def get_integrated_products(self, soup):
+        """
+        Extracts integrated product information from the provided soup object.
+
+        Args:
+            soup: BeautifulSoup object representing the HTML page.
+
+        Returns:
+            The raw data of integrated products.
+        """
         scripts = soup.find("script", {"id": "__NEXT_DATA__"})
         scripts_data = json.loads(scripts.text.replace(';','').strip())
-
         integrated_products_raw = self.extract_integrated_products(scripts_data)
-
         return integrated_products_raw
 
-    def get_integrated_reviews(self, product_id, page_size=20):
-        headers = {
-            "accept": 'application/json, text/plain, */*',
-            "accept-encoding": 'gzip, deflate, br',
-            "accept-language": 'ko-KR,ko;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.6,en;q=0.5',
-            "content-type": 'application/json;charset=UTF-8',
-            "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-        }
+    def get_integrated_reviews(self, resp):
+        """
+        Retrieves integrated reviews from the provided response.
 
-        integrated_reviews = []
-        page_count = 1
-        while True:
-            url = f"https://search.shopping.naver.com/api/review?isNeedAggregation=N&nvMid={product_id}&page={page_count}&pageSize={page_size}&sortType=QUALITY"
-            response = requests.get(url, headers=headers)
-            total_elements, integrated_review = self.extract_integrated_reviews(response)
-            total_pages = math.trunc(total_elements / page_size)
-            integrated_reviews.extend(integrated_review)
-            page_count += 1
-            if page_count > total_pages:
-                break
+        Args:
+            resp: Response object containing the store product reviews.
+
+
+        Returns:
+            The integrated review.
+        """
+        integrated_review = self.extract_integrated_reviews(resp)
         
-        return {
-            "total_elements": total_elements,
-            "integrated_review": integrated_review
-        }
+        return integrated_review
 
     def extract_keyword_info_raw(self, soup, name):
         data_list = []
@@ -156,7 +122,7 @@ class NaverShoppingCrawler:
         totalPages = response["totalPages"]
         
         response_reviews = response["contents"]
-        return totalElements, totalPages, response_reviews
+        return response_reviews
 
     def extract_integrated_reviews(self, response):
         totalCount = response["totalCount"]
@@ -229,6 +195,7 @@ class NaverShoppingCrawler:
 
     def parse_integrated_products_raw(self, raw):
         integrated_response = raw["info"]
+        id = integrated_response["nvMid"]
         lowestPrice = integrated_response["lowestPrice"]
         productCount = integrated_response["productCount"]
         reviewCount = integrated_response["reviewCount"]
@@ -238,6 +205,7 @@ class NaverShoppingCrawler:
         # averageStarScore = review_info["averageStarScore"]
         starScores = review_info["starScores"]
         return {
+            "id": id,
             "lowestPrice": lowestPrice, 
             "productCount": productCount, 
             "reviewCount": reviewCount, 
