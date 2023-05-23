@@ -45,8 +45,12 @@ crawler_variables = {
             "sortType":"QUALITY",
         },
         "parser": "NaverShoppingCrawler"
-    }
-
+    },
+    "instagram": {
+        "url": "",
+        "params": [],
+        "parser": "parser_instagram"
+    },
 }
 
 def get_envs():

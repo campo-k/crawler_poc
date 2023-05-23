@@ -1,3 +1,4 @@
+import sys
 import math
 import os
 import requests
@@ -5,8 +6,11 @@ from time import sleep
 from random import randint
 from crawler_modules.c_modules import Commons, get_envs
 from crawler_modules.c_parser import parser_dummy_site, parser_naver_store
+from crawler_modules.c_parser.parser_naver_store import NaverShoppingCrawler
 from bs4 import BeautifulSoup
 import json
+
+from instagrapi import Client
 
 
 class Crawler(Commons):
@@ -24,7 +28,7 @@ class Crawler(Commons):
         "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
     }
 
-    def __init__(self, type: str, query=None, items=None) -> None:
+    def __init__(self, type: str, query=None, items=None, **kwargs) -> None:
         '''
         query 및 items의 경우 특정 키워드 검색 등을 위해 일단 구성
         차후 개발 명세에 따로 수정 가능
@@ -38,58 +42,97 @@ class Crawler(Commons):
         self.is_error = False
         self.url = _envs[type]["url"]
         self.params = _envs[type].get("params", {})
-        self.parser = getattr(parser_naver_store, _envs[type]["parser"])
+        self.parser = eval(_envs[type]["parser"])
+        
+        # For instagram, open source 사용 (https://github.com/adw0rd/instagrapi)
+        self.insta_cl = None 
+        if type == 'instagram':
+            self.insta_cl = Client()
+            self.insta_cl.login(kwargs['insta_id'], kwargs['insta_pw'])
 
-    def execute(self):
+    def execute(self, **kwargs):
         '''
         개별 parser에서 데이터 처리
         execute는 1 request로 한정 (다만 마우스 스크롤, next page가 있는 경우에는 별도 조치 필요)
         여러 개의 키워드 쿼리가 있는 경우 main.py에서 iterate 수행 
         '''
+        # For Naver Store
+        # _raw : response의 모든 내용
+        # _parsed : 파싱 후 정리된 내용
+        # output : /data에 json파일 저장
+        # - 1. naver_store_keyword_info 입력 키워드 관련 정보
+        # - 2. naver_store_products 입력 키워드의 모든 상품 정보
+        # - 3. naver_store_product_reviews 특정 스마트 스토어의 리뷰 정보
+        # - 4. naver_store_integrated_products 통합 상품 정보 (11번가, 쿠팡 등 최저가 페이지)
         DATA_PATH = os.path.dirname(os.path.realpath(__file__)) + "/data"
-        parser = self.parser()
         data_raw = None
         data_parsed = None
 
-        if self.type == "naver_store_keyword_info":
-            soup = self.request_bs4()
-            data_parsed = parser.get_keyword_info(soup)
-        elif self.type == "naver_store_products":
-            data_raw = self.iter_pages(self.request_bs4, parser.get_products, page_param_name="pagingIndex")
-            data_parsed = parser.parse_products_raw(data_raw)
-        elif self.type == "naver_store_product_reviews":
-            data_raw = self.iter_pages(self.request_post, parser.get_store_product_reviews, page_param_name="page")
-            data_parsed = parser.parse_store_product_reviews_raw(data_raw)
-        elif self.type == "naver_store_integrated_products":
-            products_parsed = self.json_load(f"{DATA_PATH}/naver_store_products_parsed.json")
-            product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
-            data_raw = []
-            data_parsed = []
-            for id in product_ids[:10]:
-                soup = self.request_bs4(id=id)
-                raw = parser.get_integrated_products(soup)
-                parsed = parser.parse_integrated_products_raw(raw)
-                data_raw.append(raw)
-                data_parsed.append(parsed)
-        elif self.type == "naver_store_integrated_reviews":
-            # INTEGRATED_REVIEWS
-            # 20230521 currently response unauthorized
-            products_parsed = self.json_load(f"{DATA_PATH}/naver_store_products_parsed.json")
-            product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
-            data_raw = []
-            data_parsed = []
-            for id in product_ids[:10]:
-                soup = self.request_bs4(nvMid=id, page_param_name="page")
-                raw = parser.get_integrated_reviews(soup)
-                parsed = parser.parse_integrated_reviews_raw(raw)
-                data_raw.append(raw)
-                data_parsed.append(parsed)
-            pass
+        if "naver_store_" in self.type:
+            parser = self.parser()
+            if self.type == "naver_store_keyword_info":
+                soup = self.request_bs4()
+                data_parsed = parser.get_keyword_info(soup)
+            elif self.type == "naver_store_products":
+                data_raw = self.iter_pages(self.request_bs4, parser.get_products, page_param_name="pagingIndex")
+                data_parsed = parser.parse_products_raw(data_raw)
+            elif self.type == "naver_store_product_reviews":
+                data_raw = self.iter_pages(self.request_post, parser.get_store_product_reviews, page_param_name="page")
+                data_parsed = parser.parse_store_product_reviews_raw(data_raw)
+            elif self.type == "naver_store_integrated_products":
+                products_parsed = self.json_load(f"{DATA_PATH}/naver_store_products_parsed.json")
+                product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
+                data_raw = []
+                data_parsed = []
+                for id in product_ids[:10]:
+                    soup = self.request_bs4(id=id)
+                    raw = parser.get_integrated_products(soup)
+                    parsed = parser.parse_integrated_products_raw(raw)
+                    data_raw.append(raw)
+                    data_parsed.append(parsed)
+            elif self.type == "naver_store_integrated_reviews":
+                # INTEGRATED_REVIEWS
+                # 20230521 currently response unauthorized
+                products_parsed = self.json_load(f"{DATA_PATH}/naver_store_products_parsed.json")
+                product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
+                data_raw = []
+                data_parsed = []
+                for id in product_ids[:10]:
+                    soup = self.request_bs4(nvMid=id, page_param_name="page")
+                    raw = parser.get_integrated_reviews(soup)
+                    parsed = parser.parse_integrated_reviews_raw(raw)
+                    data_raw.append(raw)
+                    data_parsed.append(parsed)
 
-        if data_raw:
-            self.json_save(f"{DATA_PATH}/{self.type}_raw.json", data_raw)
-        if data_parsed:
-            self.json_save(f"{DATA_PATH}/{self.type}_parsed.json", data_parsed)
+            if data_raw:
+                self.json_save(f"{DATA_PATH}/{self.type}_raw.json", data_raw)
+            if data_parsed:
+                self.json_save(f"{DATA_PATH}/{self.type}_parsed.json", data_parsed)
+            return True
+
+
+        # For instagram, open source 사용 (https://github.com/adw0rd/instagrapi)
+        # - 요구 데이터 추가 시 관련 메서드 찾아서 추가 필요
+        # - 현재 구현되어 있는 메서드 4종
+        # - 1. 해시태그 인포 >> 해시태그 팔로워 수등
+        # - 2. 해시태그 인기 게시물 >> 해시태그 인기 게시물 리스트
+        # - 3. 해시태그 관련 게시물 >> 해시태그 관련 게시물 리스트
+        # - 4. 유저 게시물 >> 유저의 게시물 리스트
+        if self.type == 'instagram':
+            if   "hashtag_info" in kwargs:
+                data = self.insta_cl.hashtag_info(kwargs["hashtag_info"])
+            elif "hashtag_media_top" in kwargs:
+                data = self.insta_cl.hashtag_medias_top(kwargs["hashtag_media_top"])
+            elif "hashtag_media_rct" in kwargs:
+                data = self.insta_cl.hashtag_medias_recent(kwargs["hashtag_media_rct"])
+            elif "user_media" in kwargs:
+                user = self.insta_cl.user_id_from_username(kwargs["user_media"])
+                data = self.insta_cl.user_medias(user, 20)
+        else:
+            resp = self.request_html()
+            data = self.parser(resp.text)
+        return data        
+    
 
     def iter_pages(self, request_func, func, max_page=5, page_param_name="pagingIndex"):
         """
@@ -115,7 +158,7 @@ class Crawler(Commons):
                     ret_list.extend(ret)
                     page_count += 1
         return ret_list
-
+    
     def set_params(self, **kwargs):
         '''
         데이터 소스에서 필요한 parameter 정리
