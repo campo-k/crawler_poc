@@ -53,3 +53,5 @@ docs/_build/
 .vscode/
 
 .venv
+
+/crawler_modules/data/*
