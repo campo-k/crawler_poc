@@ -5,7 +5,7 @@ import requests
 from time import sleep
 from random import randint
 from crawler_modules.c_modules import Commons, get_envs
-from crawler_modules.c_parser import parser_dummy_site, parser_naver_store
+from crawler_modules.c_parser import parser_dummy_site, parser_naver_store, parser_tictoc
 from crawler_modules.c_parser.parser_naver_store import NaverShoppingCrawler
 from bs4 import BeautifulSoup
 import json
@@ -16,9 +16,9 @@ from instagrapi import Client
 class Crawler(Commons):
     base_headers = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36",
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        "accept-language": "en-US;en;q=0.9",
-        "accept-encoding": "gzip, deflate, br",
+        # "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        # "accept-language": "en-US;en;q=0.9",
+        # "accept-encoding": "gzip, deflate, br",
     }
     post_headers = {
         "accept": 'application/json, text/plain, */*',
@@ -110,7 +110,6 @@ class Crawler(Commons):
                 self.json_save(f"{DATA_PATH}/{self.type}_parsed.json", data_parsed)
             return True
 
-
         # For instagram, open source 사용 (https://github.com/adw0rd/instagrapi)
         # - 요구 데이터 추가 시 관련 메서드 찾아서 추가 필요
         # - 현재 구현되어 있는 메서드 4종
@@ -118,7 +117,7 @@ class Crawler(Commons):
         # - 2. 해시태그 인기 게시물 >> 해시태그 인기 게시물 리스트
         # - 3. 해시태그 관련 게시물 >> 해시태그 관련 게시물 리스트
         # - 4. 유저 게시물 >> 유저의 게시물 리스트
-        if self.type == 'instagram':
+        elif self.type == 'instagram':
             if   "hashtag_info" in kwargs:
                 data = self.insta_cl.hashtag_info(kwargs["hashtag_info"])
             elif "hashtag_media_top" in kwargs:
@@ -128,9 +127,28 @@ class Crawler(Commons):
             elif "user_media" in kwargs:
                 user = self.insta_cl.user_id_from_username(kwargs["user_media"])
                 data = self.insta_cl.user_medias(user, 20)
-        else:
+
+        # For tictoc
+        # - 대부분 간단한 xpath selector 해결가능
+        # - 1. 해시태그 인포 
+        # - 2. 해시태그 리스트 및 정보
+        # - 3. 음원 관련 리스트
+        # - 4. 유저 인포
+        elif self.type == 'tictoc':
+            if   "hashtag_info" in kwargs:
+                self.url = f"https://www.tiktok.com/tag/{kwargs['hashtag_info']}"
+            elif "hashtag_list" in kwargs:
+                self.url = f"https://www.tiktok.com/tag/{kwargs['hashtag_list']}"
+            elif "music_list" in kwargs:
+                self.url = f"https://www.tiktok.com/music/{kwargs['music_list']}"
+            elif "user_info" in kwargs:
+                self.url = f"https://www.tiktok.com/@{kwargs['user_info']}"
             resp = self.request_html()
-            data = self.parser(resp.text)
+            pser = self.parser.parser_tictoc()
+            data = pser.datas(resp.text, list(kwargs.keys())[0])
+            return data
+        else:
+            raise KeyError("Choose the correct type of crawler.")
         return data        
     
 
@@ -164,8 +182,8 @@ class Crawler(Commons):
         데이터 소스에서 필요한 parameter 정리
         기본적으로 제공해야 하는 cookie, 이외에도 args로 입력받은 내용을 정리
         '''
-        self.params.update(kwargs)
-        pass
+        if kwargs != {}:
+            self.params.update(kwargs)
 
     def request_html(self):
         self.set_params()

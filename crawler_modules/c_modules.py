@@ -1,7 +1,6 @@
 import json
 from urllib import parse
 from datetime import datetime
-import os
 
 crawler_variables = {
     "dummy_site": {
@@ -50,6 +49,11 @@ crawler_variables = {
         "url": "",
         "params": [],
         "parser": "parser_instagram"
+    },
+    "tictoc": {
+        "url": "https://www.tiktok.com/",
+        "params": [],
+        "parser": "parser_tictoc"
     },
 }
 
