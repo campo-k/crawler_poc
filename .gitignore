@@ -55,3 +55,4 @@ docs/_build/
 .venv
 
 /crawler_modules/data/*
+!/crawler_modules/data/empty.txt

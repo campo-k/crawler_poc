@@ -5,7 +5,12 @@ import requests
 from time import sleep
 from random import randint
 from crawler_modules.c_modules import Commons, get_envs
-from crawler_modules.c_parser import parser_dummy_site, parser_naver_store, parser_tictoc
+from crawler_modules.c_parser import (
+    parser_dummy_site,
+    parser_naver_store,
+    parser_instagram,
+    parser_tictoc,
+)
 from crawler_modules.c_parser.parser_naver_store import NaverShoppingCrawler
 from bs4 import BeautifulSoup
 import json
@@ -21,18 +26,18 @@ class Crawler(Commons):
         # "accept-encoding": "gzip, deflate, br",
     }
     post_headers = {
-        "accept": 'application/json, text/plain, */*',
-        "accept-encoding": 'gzip, deflate, br',
-        "accept-language": 'ko-KR,ko;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.6,en;q=0.5',
-        "content-type": 'application/json;charset=UTF-8',
-        "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+        "accept": "application/json, text/plain, */*",
+        "accept-encoding": "gzip, deflate, br",
+        "accept-language": "ko-KR,ko;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.6,en;q=0.5",
+        "content-type": "application/json;charset=UTF-8",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
     }
 
     def __init__(self, type: str, query=None, items=None, **kwargs) -> None:
-        '''
+        """
         query 및 items의 경우 특정 키워드 검색 등을 위해 일단 구성
         차후 개발 명세에 따로 수정 가능
-        '''
+        """
         super().__init__()
         _envs = get_envs()
         self.page = 1
@@ -43,19 +48,19 @@ class Crawler(Commons):
         self.url = _envs[type]["url"]
         self.params = _envs[type].get("params", {})
         self.parser = eval(_envs[type]["parser"])
-        
+
         # For instagram, open source 사용 (https://github.com/adw0rd/instagrapi)
-        self.insta_cl = None 
-        if type == 'instagram':
+        self.insta_cl = None
+        if type == "instagram":
             self.insta_cl = Client()
-            self.insta_cl.login(kwargs['insta_id'], kwargs['insta_pw'])
+            self.insta_cl.login(kwargs["insta_id"], kwargs["insta_pw"])
 
     def execute(self, **kwargs):
-        '''
+        """
         개별 parser에서 데이터 처리
         execute는 1 request로 한정 (다만 마우스 스크롤, next page가 있는 경우에는 별도 조치 필요)
-        여러 개의 키워드 쿼리가 있는 경우 main.py에서 iterate 수행 
-        '''
+        여러 개의 키워드 쿼리가 있는 경우 main.py에서 iterate 수행
+        """
         # For Naver Store
         # _raw : response의 모든 내용
         # _parsed : 파싱 후 정리된 내용
@@ -74,14 +79,24 @@ class Crawler(Commons):
                 soup = self.request_bs4()
                 data_parsed = parser.get_keyword_info(soup)
             elif self.type == "naver_store_products":
-                data_raw = self.iter_pages(self.request_bs4, parser.get_products, page_param_name="pagingIndex")
+                data_raw = self.iter_pages(
+                    self.request_bs4, parser.get_products, page_param_name="pagingIndex"
+                )
                 data_parsed = parser.parse_products_raw(data_raw)
             elif self.type == "naver_store_product_reviews":
-                data_raw = self.iter_pages(self.request_post, parser.get_store_product_reviews, page_param_name="page")
+                data_raw = self.iter_pages(
+                    self.request_post,
+                    parser.get_store_product_reviews,
+                    page_param_name="page",
+                )
                 data_parsed = parser.parse_store_product_reviews_raw(data_raw)
             elif self.type == "naver_store_integrated_products":
-                products_parsed = self.json_load(f"{DATA_PATH}/naver_store_products_parsed.json")
-                product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
+                products_parsed = self.json_load(
+                    f"{DATA_PATH}/naver_store_products_parsed.json"
+                )
+                product_ids = [
+                    p["productId"] for p in products_parsed if p.get("lowMallList")
+                ]
                 data_raw = []
                 data_parsed = []
                 for id in product_ids[:10]:
@@ -93,8 +108,12 @@ class Crawler(Commons):
             elif self.type == "naver_store_integrated_reviews":
                 # INTEGRATED_REVIEWS
                 # 20230521 currently response unauthorized
-                products_parsed = self.json_load(f"{DATA_PATH}/naver_store_products_parsed.json")
-                product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
+                products_parsed = self.json_load(
+                    f"{DATA_PATH}/naver_store_products_parsed.json"
+                )
+                product_ids = [
+                    p["productId"] for p in products_parsed if p.get("lowMallList")
+                ]
                 data_raw = []
                 data_parsed = []
                 for id in product_ids[:10]:
@@ -117,8 +136,8 @@ class Crawler(Commons):
         # - 2. 해시태그 인기 게시물 >> 해시태그 인기 게시물 리스트
         # - 3. 해시태그 관련 게시물 >> 해시태그 관련 게시물 리스트
         # - 4. 유저 게시물 >> 유저의 게시물 리스트
-        elif self.type == 'instagram':
-            if   "hashtag_info" in kwargs:
+        elif self.type == "instagram":
+            if "hashtag_info" in kwargs:
                 data = self.insta_cl.hashtag_info(kwargs["hashtag_info"])
             elif "hashtag_media_top" in kwargs:
                 data = self.insta_cl.hashtag_medias_top(kwargs["hashtag_media_top"])
@@ -130,12 +149,12 @@ class Crawler(Commons):
 
         # For tictoc
         # - 대부분 간단한 xpath selector 해결가능
-        # - 1. 해시태그 인포 
+        # - 1. 해시태그 인포
         # - 2. 해시태그 리스트 및 정보
         # - 3. 음원 관련 리스트
         # - 4. 유저 인포
-        elif self.type == 'tictoc':
-            if   "hashtag_info" in kwargs:
+        elif self.type == "tictoc":
+            if "hashtag_info" in kwargs:
                 self.url = f"https://www.tiktok.com/tag/{kwargs['hashtag_info']}"
             elif "hashtag_list" in kwargs:
                 self.url = f"https://www.tiktok.com/tag/{kwargs['hashtag_list']}"
@@ -149,8 +168,7 @@ class Crawler(Commons):
             return data
         else:
             raise KeyError("Choose the correct type of crawler.")
-        return data        
-    
+        return data
 
     def iter_pages(self, request_func, func, max_page=5, page_param_name="pagingIndex"):
         """
@@ -168,20 +186,20 @@ class Crawler(Commons):
         page_count = 1
         ret_list = []
         while True:
-            resp = request_func(**{page_param_name : page_count})
+            resp = request_func(**{page_param_name: page_count})
             ret = func(resp)
             if page_count > max_page or ret == None:
                 break
             else:
-                    ret_list.extend(ret)
-                    page_count += 1
+                ret_list.extend(ret)
+                page_count += 1
         return ret_list
-    
+
     def set_params(self, **kwargs):
-        '''
+        """
         데이터 소스에서 필요한 parameter 정리
         기본적으로 제공해야 하는 cookie, 이외에도 args로 입력받은 내용을 정리
-        '''
+        """
         if kwargs != {}:
             self.params.update(kwargs)
 
@@ -200,7 +218,9 @@ class Crawler(Commons):
     def request_post(self, **kwargs):
         self.set_params(**kwargs)
         try:
-            resp = requests.post(self.url, headers=self.post_headers, data=json.dumps(self.params))
+            resp = requests.post(
+                self.url, headers=self.post_headers, data=json.dumps(self.params)
+            )
             resp.raise_for_status()
             resp = resp.json()
             print(f"[crawler log] executing {self.url}...")
@@ -209,13 +229,12 @@ class Crawler(Commons):
             self.is_error = True
             print(f"[crawler error log] {e}")
 
-
     def request_bs4(self, id=None, **kwargs):
         self.set_params(**kwargs)
         try:
             urls = self.url + id if id else self.url_encoder(self.url, self.params)
             resp = requests.get(urls, headers=self.base_headers)
-            soup = BeautifulSoup(resp.content, 'html.parser')
+            soup = BeautifulSoup(resp.content, "html.parser")
             resp.raise_for_status()
             print(f"[crawler log] executing {urls}...")
             return soup
