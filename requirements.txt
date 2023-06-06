@@ -7,6 +7,7 @@ Django==4.2.1
 idna==3.4
 image==1.5.33
 instagrapi @ git+https://github.com/adw0rd/instagrapi.git@8759a17ab02c0987baf68049692c5888a1015058
+instagrapi==1.17.10
 lxml==4.9.2
 Pillow==9.5.0
 pycryptodomex==3.17
