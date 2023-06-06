@@ -3,7 +3,7 @@ from crawler_modules.c_crawler import *
 
 if __name__ == "__main__":
     # instagram crawler
-    if False:
+    if True:
         INSTA_USER_NAME = ""
         INSTA_USER_PASS = ""
         # Instagram open source crawler initialize.
@@ -15,7 +15,7 @@ if __name__ == "__main__":
         # hashtag 관련
         ht_info = crawler.execute(hashtag_info= "살로몬")
         ht_media_tops = crawler.execute(hashtag_media_top= "살로몬")
-        ht_media_rcts = crawler.execute(hashtag_media_rct= "살로몬")\
+        ht_media_rcts = crawler.execute(hashtag_media_rct= "살로몬")
         # user 관련
         user_media = crawler.execute(user_media= "ssunnyday__")
         # result print!!

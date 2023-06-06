@@ -5,7 +5,7 @@ import requests
 from time import sleep
 from random import randint
 from crawler_modules.c_modules import Commons, get_envs
-from crawler_modules.c_parser import parser_dummy_site, parser_naver_store, parser_tictoc
+from crawler_modules.c_parser import *
 from crawler_modules.c_parser.parser_naver_store import NaverShoppingCrawler
 from bs4 import BeautifulSoup
 import json
