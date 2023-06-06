@@ -4,8 +4,8 @@ from crawler_modules.c_crawler import *
 if __name__ == "__main__":
     # instagram crawler
     if False:
-        INSTA_USER_NAME = "lafefish@gmail.com"
-        INSTA_USER_PASS = "jjang$194324"
+        INSTA_USER_NAME = ""
+        INSTA_USER_PASS = ""
         # Instagram open source crawler initialize.
         crawler = Crawler(
             "instagram", insta_id=INSTA_USER_NAME, insta_pw=INSTA_USER_PASS
