@@ -5,7 +5,7 @@ import requests
 from time import sleep
 from random import randint
 from crawler_modules.c_modules import Commons, get_envs
-from crawler_modules.c_parser import *
+from crawler_modules.c_parser import parser_instagram, parser_tictoc
 from crawler_modules.c_parser.parser_naver_store import NaverShoppingCrawler
 from bs4 import BeautifulSoup
 import json
@@ -159,7 +159,7 @@ class Crawler(Commons):
                 self.url = f"https://www.tiktok.com/@{kwargs['user_info']}"
             resp = self.request_html()
             pser = self.parser.parser_tictoc()
-            data = pser.datas(resp.text, list(kwargs.keys())[0])
+            data = pser.datas(resp.content, list(kwargs.keys())[0])
             return data
         else:
             raise KeyError("Choose the correct type of crawler.")

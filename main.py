@@ -3,7 +3,7 @@ from crawler_modules.c_crawler import *
 
 if __name__ == "__main__":
     # instagram crawler
-    if True:
+    if False:
         INSTA_USER_NAME = ""
         INSTA_USER_PASS = ""
         # Instagram open source crawler initialize.
@@ -11,11 +11,11 @@ if __name__ == "__main__":
             "instagram", insta_id=INSTA_USER_NAME, insta_pw=INSTA_USER_PASS
         )
         # hashtag 관련
-        ht_info = crawler.execute(hashtag_info= "살로몬")
-        ht_media_tops = crawler.execute(hashtag_media_top= "살로몬")
-        ht_media_rcts = crawler.execute(hashtag_media_rct= "살로몬")
+        ht_info = crawler.execute(hashtag_info="살로몬")
+        ht_media_tops = crawler.execute(hashtag_media_top="살로몬")
+        ht_media_rcts = crawler.execute(hashtag_media_rct="살로몬")
         # user 관련
-        user_media = crawler.execute(user_media= "ssunnyday__")
+        user_media = crawler.execute(user_media="ssunnyday__")
         # result print!!
         print(f"[Instagram ht_info result] {ht_info.name} / {ht_info.media_count}")
         print(
@@ -44,5 +44,6 @@ if __name__ == "__main__":
         ht_list = crawler.execute(hashtag_list="아저씨")
         ms_list = crawler.execute(music_list="행운음원-7224788594336992002")
         us_info = crawler.execute(user_info="user4rkmbsmyvh")
-
+        with open("us_info.json", "w") as file:
+            file.write(json.dumps(us_info))
     print("End!!")
