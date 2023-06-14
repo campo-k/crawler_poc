@@ -30,6 +30,11 @@ if __name__ == "__main__":
     print(f"[Instagram ht_media_rcts result] {[h.caption_text for h in ht_media_rcts]}")
     print(f"[Instagram user_media result] {[h.caption_text for h in user_media]}")
 
+
+    # TODO: 
+    # 상품리뷰관련 - originProductNo 소재를 파악해야함
+    # cat_id, frm 등 kwargs가 의미하는 바가 무엇인지
+
     crawler = Crawler("naver_store")
     # 키워드 관련 
     # ex. 연관검색어, 카테고리, 브랜드 등
