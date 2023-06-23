@@ -8,41 +8,9 @@ crawler_variables = {
         "params": [],
         "parser": "parser_dummy"
     },
-    "naver_store_keyword_info":{
-        "url": "https://search.shopping.naver.com/search/all?",
-        "params": {"query": "남성 스니커즈"},
-        "parser": "NaverShoppingCrawler"
-    },
-    "naver_store_products":{
-        "url": "https://search.shopping.naver.com/search/all?",
-        "params": {
-                "query": "남성 스니커즈",
-                "cat_id": "",
-                "frm": ""
-            },
-        "parser": "NaverShoppingCrawler"
-    },
-    "naver_store_product_reviews":{
-        "url": "https://m.shopping.naver.com/v1/reviews/paged-reviews",
-        "params": {
-            "pageSize": 20,
-            "merchantNo": "500245685",
-            "originProductNo": 4662556695,
-            "sortType": "REVIEW_RANKING"
-        },
-        "parser": "NaverShoppingCrawler"
-    },
-    "naver_store_integrated_products":{
-        "url": "https://search.shopping.naver.com/catalog/",
-        "parser": "NaverShoppingCrawler"
-    },
-    "naver_store_integrated_reviews":{
-        "url": "https://search.shopping.naver.com/api/review?",
-        "params": {
-            "isNeedAggregation": "N",
-            "pageSize":20,
-            "sortType":"QUALITY",
-        },
+    "naver_store": {
+        "url": "",
+        "params": {},
         "parser": "NaverShoppingCrawler"
     },
     "instagram": {
