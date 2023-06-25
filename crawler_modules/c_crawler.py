@@ -7,9 +7,9 @@ from random import randint
 from crawler_modules.c_modules import Commons, get_envs
 from crawler_modules.c_parser import parser_instagram, parser_tictoc
 from crawler_modules.c_parser.parser_naver_store import NaverShoppingCrawler
+from crawler_modules.c_parser.parser_instagram import parser_instagram
 from bs4 import BeautifulSoup
 import json
-
 from instagrapi import Client
 
 
@@ -68,30 +68,36 @@ class Crawler(Commons):
         data_raw = None
         data_parsed = None
 
-        if "naver_store_" in self.type:
+        if "naver_store" in self.type:
+            c_name = kwargs.get("name")
+            if c_name:
+                del kwargs["name"]
             parser = self.parser()
-            if self.type == "naver_store_keyword_info":
-                soup = self.request_bs4()
+            if   c_name == "keyword_info":
+                self.url="https://search.shopping.naver.com/search/all?"
+                soup = self.request_bs4(**kwargs)
                 data_parsed = parser.get_keyword_info(soup)
-            elif self.type == "naver_store_products":
-                data_raw = self.iter_pages(
-                    self.request_bs4, parser.get_products, page_param_name="pagingIndex"
-                )
+            elif c_name == "products":
+                self.url="https://search.shopping.naver.com/search/all?"
+                max_page = kwargs.get("max_page")
+                if max_page:
+                    del kwargs["max_page"]
+                page_param_name = "pagingIndex"
+                data_raw = self.iter_pages(self.request_bs4, parser.get_products, page_param_name, max_page, **kwargs)
                 data_parsed = parser.parse_products_raw(data_raw)
-            elif self.type == "naver_store_product_reviews":
-                data_raw = self.iter_pages(
-                    self.request_post,
-                    parser.get_store_product_reviews,
-                    page_param_name="page",
-                )
+            elif c_name == "product_reviews":
+                self.url="https://m.shopping.naver.com/v1/reviews/paged-reviews"
+                max_page = kwargs.get("max_page")
+                page_param_name = "page"
+                data_raw = self.iter_pages(self.request_post, parser.get_store_product_reviews, page_param_name, **kwargs)
                 data_parsed = parser.parse_store_product_reviews_raw(data_raw)
-            elif self.type == "naver_store_integrated_products":
-                products_parsed = self.json_load(
-                    f"{DATA_PATH}/naver_store_products_parsed.json"
-                )
-                product_ids = [
-                    p["productId"] for p in products_parsed if p.get("lowMallList")
-                ]
+            elif c_name == "integrated_products":
+                self.url="https://search.shopping.naver.com/catalog/"
+                # products_parsed = self.json_load(f"{DATA_PATH}/naver_store_products_parsed.json")
+                # product_ids = [p["productId"] for p in products_parsed if p.get("lowMallList")]
+                product_ids = kwargs.get("products")
+                if product_ids:
+                    del kwargs["products"]
                 data_raw = []
                 data_parsed = []
                 for id in product_ids[:10]:
@@ -165,7 +171,7 @@ class Crawler(Commons):
             raise KeyError("Choose the correct type of crawler.")
         return data
 
-    def iter_pages(self, request_func, func, max_page=5, page_param_name="pagingIndex"):
+    def iter_pages(self, request_func, func, page_param_name, max_page=5, **kwargs):
         """
         Iterates over multiple pages of data using the provided request function and processing function.
 
@@ -181,7 +187,8 @@ class Crawler(Commons):
         page_count = 1
         ret_list = []
         while True:
-            resp = request_func(**{page_param_name: page_count})
+            kwargs.update({page_param_name : page_count})
+            resp = request_func(**kwargs)
             ret = func(resp)
             if page_count > max_page or ret == None:
                 break
